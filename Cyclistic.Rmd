@@ -1,0 +1,118 @@
+---
+title: "Cyclistic"
+author: "Shubham"
+date: '2022-06-11'
+output:
+  html_document: default
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+### Environment setup
+Loading required packages
+```{r}
+library(tidyverse)
+library(skimr)
+library(lubridate)
+library(dplyr)
+library(scales)
+```
+
+### Loading datasets
+```{r}
+df1 <- read_csv("202106-divvy-tripdata.csv")
+df2 <- read_csv("202107-divvy-tripdata.csv")
+df3 <- read_csv("202108-divvy-tripdata.csv")
+df4 <- read_csv("202109-divvy-tripdata.csv")
+df5 <- read_csv("202110-divvy-tripdata.csv")
+df6 <- read_csv("202111-divvy-tripdata.csv")
+df7 <- read_csv("202112-divvy-tripdata.csv")
+df8 <- read_csv("202201-divvy-tripdata.csv")
+df9 <- read_csv("202202-divvy-tripdata.csv")
+df10 <- read_csv("202203-divvy-tripdata.csv")
+df11 <- read_csv("202204-divvy-tripdata.csv")
+df12 <- read_csv("202205-divvy-tripdata.csv")
+```
+
+### Combining the datasets into one dataset
+```{r}
+trips <- bind_rows(df1, df2, df3, df4, df5,df6, df7, df8, df9, df10, df11, df12)
+
+glimpse(trips)
+summary(trips)
+```
+
+### Data Processing
+Dropping all NA values
+```{r}
+trips_clean <- drop_na(trips)
+```
+
+Seperating the dates into day, month, year and day of the week
+```{r}
+trips_clean$date <- as.Date(trips_clean$started_at)
+trips_clean$month <- format(as.Date(trips_clean$date), "%m")
+trips_clean$year <- format(as.Date(trips_clean$date), "%Y")
+trips_clean$day <- format(as.Date(trips_clean$date), "%d")
+trips_clean$day_of_week <- format(as.Date(trips_clean$date), "%A")
+```
+
+creating custom columns of duration of the trips and total distance travelled
+```{r}
+trips_clean$trip_duration <- difftime(trips_clean$ended_at, trips_clean$started_at)
+
+trips_clean$trip_duration_new <- abs(trips_clean$trip_duration)
+```
+
+Number of rides by usertype and its Visualization
+```{r}
+ridership <- trips_clean %>% 
+  group_by(member_casual) %>% 
+  summarize(count = n())
+
+ ggplot(ridership) +
+  geom_bar(aes(member_casual, y = count), position = "dodge", stat = "identity") +
+   scale_y_continuous(labels = comma) +
+   labs(title = "Count by Usertype", x = "Usertype")
+```
+
+Rides by months and its visualization
+```{r}
+rides_monthly <- trips_clean %>% 
+  group_by(month = month(started_at , label = TRUE), member_casual) %>% 
+  summarize(count = n(), groups = "drop")
+
+rides_monthly %>% 
+  ggplot(aes(x = month, y = count, fill = member_casual)) +
+  geom_bar(poistion = "dodge", stat = "identity") +
+  scale_y_continuous(label = comma) +
+  labs(title = "Total rides by month", fill = "Ridership", x = NULL, y = "Total rides") 
+```
+
+Rides by week and its visualization
+```{r}
+rides_weekly <- trips_clean %>% 
+  group_by(day_of_week, member_casual) %>% 
+  summarize(count = n(), groups = "drop") %>% 
+  arrange(match(day_of_week,c("Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday")))
+
+rides_weekly$day_of_week <- fct_inorder(rides_weekly$day_of_week)
+rides_weekly %>% 
+  ggplot(aes(x = day_of_week, y = count, fill = member_casual)) +
+  geom_bar(position = "dodge", stat = "identity") +
+  scale_y_continuous(label = comma) +
+  labs(title = "Total rides by days of the week", fill = "Ridership", x = NULL, y = "Total rides")
+```
+
+### Saving and exporting files for furthur detailed visualization in Tableau
+```{r}
+write.csv(ridership, file = "cyclistic-ridership.csv")
+write.csv(rides_weekly,file = "cyclistic-rides-of-week.csv")
+write.csv(rides_monthly,file ="cyclistic-rides-of-month.csv")
+write.csv(trips_clean,file ="cyclistic-trips-data.csv")
+
+```
+
